@@ -1,8 +1,11 @@
 cmake_minimum_required(VERSION 3.16)
 project(BoostHUD)
 
-# Include the BakkesMod SDK CMake helpers
-add_subdirectory(bakkesmodsdk EXCLUDE_FROM_ALL)
+# Path to the BakkesMod SDK (cloned by GitHub Actions)
+set(BAKKESMOD_SDK_PATH ${CMAKE_CURRENT_SOURCE_DIR}/bakkesmodsdk)
 
-# Create the plugin library
+# Include the helper script that provides bakkesmod_plugin()
+include(${BAKKESMOD_SDK_PATH}/cmake/bakkesmod_plugin.cmake)
+
+# Build the plugin DLL
 bakkesmod_plugin(BoostHUD BoostHUD.cpp)
