@@ -1,0 +1,70 @@
+name: Build BakkesMod Plugin
+
+on: [push, workflow_dispatch]
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v1.1
+
+      - name: Download BakkesMod SDK
+        run: |
+          curl -L -o bakkesmodsdk.zip https://github.com/bakkesmodorg/BakkesModSDK/archive/refs/heads/master.zip
+          Expand-Archive bakkesmodsdk.zip -DestinationPath .
+          mv BakkesModSDK-master bakkesmodsdk
+
+      - name: Create project files
+        shell: pwsh
+        run: |
+          # Create a simple .vcxproj that compiles our plugin
+          @'
+          <?xml version="1.0" encoding="utf-8"?>
+          <Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+            <PropertyGroup>
+              <ConfigurationType>DynamicLibrary</ConfigurationType>
+              <PlatformToolset>v143</PlatformToolset>
+              <CharacterSet>Unicode</CharacterSet>
+              <OutDir>$(SolutionDir)bin\$(Configuration)\</OutDir>
+            </PropertyGroup>
+            <ItemGroup>
+              <ClCompile Include="BoostHUD.cpp" />
+            </ItemGroup>
+            <ItemGroup>
+              <ClInclude Include="bakkesmodsdk\include\*" />
+            </ItemGroup>
+            <PropertyGroup Condition="'$(Configuration)'=='Release'">
+              <TargetName>BoostHUD</TargetName>
+            </PropertyGroup>
+            <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+          </Project>
+          '@ | Out-File -FilePath BoostHUD.vcxproj -Encoding utf8
+
+          # Solution file
+          @'
+          Microsoft Visual Studio Solution File, Format Version 12.00
+          # Visual Studio Version 17
+          Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "BoostHUD", "BoostHUD.vcxproj", "{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}"
+          EndProject
+          Global
+              GlobalSection(SolutionConfigurationPlatforms) = preSolution
+                  Release|x64 = Release|x64
+              EndGlobalSection
+              GlobalSection(ProjectConfigurationPlatforms) = postSolution
+                  {A1B2C3D4-E5F6-7890-ABCD-EF1234567890}.Release|x64.ActiveCfg = Release|x64
+                  {A1B2C3D4-E5F6-7890-ABCD-EF1234567890}.Release|x64.Build.0 = Release|x64
+              EndGlobalSection
+          EndGlobal
+          '@ | Out-File -FilePath BoostHUD.sln -Encoding utf8
+
+      - name: Build
+        run: msbuild BoostHUD.sln /p:Configuration=Release /p:Platform=x64
+
+      - name: Upload plugin DLL
+        uses: actions/upload-artifact@v4
+        with:
+          name: BoostHUD-Plugin
+          path: bin\Release\BoostHUD.dll
