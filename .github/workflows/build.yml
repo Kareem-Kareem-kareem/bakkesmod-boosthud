@@ -1,8 +1,6 @@
-name: Build BakkesMod Plugin
+name: Build BoostHUD Plugin
 
-on:
-  push:
-  workflow_dispatch:
+on: [push, workflow_dispatch]
 
 jobs:
   build:
@@ -10,16 +8,37 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Clone BakkesMod SDK
-        run: git clone --depth 1 https://github.com/bakkesmodorg/BakkesModSDK.git bakkesmodsdk
+      - name: Setup NuGet
+        uses: nuget/setup-nuget@v1
 
-      - name: Configure and Build
+      - name: Restore NuGet packages
+        run: nuget restore
+
+      - name: Create project file
+        shell: pwsh
         run: |
-          cmake -B build -A x64 -DCMAKE_BUILD_TYPE=Release
-          cmake --build build --config Release
+          @'
+          <?xml version="1.0" encoding="utf-8"?>
+          <Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+            <PropertyGroup>
+              <ConfigurationType>DynamicLibrary</ConfigurationType>
+              <PlatformToolset>v143</PlatformToolset>
+              <CharacterSet>Unicode</CharacterSet>
+              <TargetName>BoostHUD</TargetName>
+              <OutDir>$(SolutionDir)bin\$(Configuration)\</OutDir>
+            </PropertyGroup>
+            <Import Project="packages\BakkesMod.SDK.142.0.0\build\native\BakkesMod.SDK.targets" Condition="Exists('packages\BakkesMod.SDK.142.0.0\build\native\BakkesMod.SDK.targets')" />
+            <ItemGroup>
+              <ClCompile Include="BoostHUD.cpp" />
+            </ItemGroup>
+          </Project>
+          '@ | Out-File -FilePath BoostHUD.vcxproj -Encoding utf8
 
-      - name: Upload plugin
+      - name: Build
+        run: msbuild BoostHUD.vcxproj /p:Configuration=Release /p:Platform=x64
+
+      - name: Upload DLL
         uses: actions/upload-artifact@v4
         with:
           name: BoostHUD-Plugin
-          path: build/Release/BoostHUD.dll
+          path: bin\Release\BoostHUD.dll
